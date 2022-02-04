@@ -1,0 +1,205 @@
+---
+title: "Group Project"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+read.csv("onlinedelivery.csv")
+order <- read.csv("onlinedelivery.csv", header =T)
+head(order, 2)
+
+# With output = binary
+#install.packages("dplyr")
+library(dplyr)
+order.1  <- order %>%
+  mutate(Output = ifelse(Output == "Yes" ,1,0)) %>% 
+  mutate(Influence.of.rating = ifelse(Influence.of.rating == "Yes" ,1,0))
+
+order.1$Output <- as.factor(order.1$Output)
+#pick some of the variables for correlation analysis
+order.1.small <- order.1[, c(1,2,7,8,12:31,34:49)]
+#round(cor(order.1.small),2)
+
+#split the data to compute boxplot
+order.2.small <- order.1.small[,c(5:10)]
+hist(Output, main="Likelyhood to Repurchase")
+
+names(order.2.small) <- c("Convenience", "Time Saving", "Variation", "Easy Payment", "Promotions","Quality")
+boxplot(order.2.small)
+
+order.3.small <- order.1.small[,c(11:16)]
+names(order.3.small) <- c("Tracking System", "Self Cooking", "Health Concern", "Late Delivery", "Poor Hygine","Bad Experience")
+boxplot(order.3.small)
+
+order.4.small <- order.1.small[,c(17:22)]
+names(order.4.small) <- c("Unavailibility", "Unaffordable", "Long delivery time", "Late Delivery", "Delay(Person)","Delay(Restaurant")
+boxplot(order.4.small)
+
+order.5.small <- order.1.small[,c(22:24)]
+names(order.5.small) <- c("Wrong Orger", "Missing Items", "Order placed by mistake")
+boxplot(order.5.small)
+```
+
+
+Data cleaning -- Dummy variables
+```{r}
+attach(order)
+
+#Gender
+order$Gender <- ifelse(order$Gender == 'Male', 1, 0)
+
+#Marital Status (Baseline: Single)
+order$Married <- ifelse(order$Marital.Status == 'Married', 1, 0)
+order$Unknown <- ifelse(order$Marital.Status == 'Prefer not to say', 1, 0)
+
+#Occupation (Baseline:House Wife)
+order$Student <- ifelse(order$Occupation == 'Student', 1, 0)
+order$Employee <- ifelse(order$Occupation == 'Employee', 1, 0)
+order$SelfEmployeed <- ifelse(order$Occupation == 'Self Employeed', 1, 0)
+
+#Monthly Income (Baseline: More than 50000)
+order$Noincome <- ifelse(order$Monthly.Income == 'No Income', 1, 0)
+order$Below10000 <- ifelse(order$Monthly.Income == 'Below Rs.10000', 1, 0)
+order$'10001to25000' <- ifelse(order$Monthly.Income == '10001 to 25000', 1, 0)
+order$'25001to50000' <- ifelse(order$Monthly.Income == '25001 to 50000', 1, 0)
+
+#Education Qulification (Baseline:Uneducated)
+order$School <- ifelse(order$Educational.Qualifications == 'School', 1, 0)
+order$Postgrad <- ifelse(order$Educational.Qualifications == '	
+Post Graduate', 1, 0)
+order$Graduate <- ifelse(order$Educational.Qualifications == 'Graduate', 1, 0)
+
+#Medium (Baseline: Direct call)
+order$apps <- ifelse(order$Medium == 'Food delivery apps', 1, 0)
+order$Web <- ifelse(order$Medium == 'Web browser', 1, 0)
+order$Walkin <- ifelse(order$Medium == 'Walk-in', 1, 0)
+
+#Meal (Baseline: Snaks)
+order$Breakfast <- ifelse(order$Meal == 'Breakfast', 1, 0)
+order$Dinner <- ifelse(order$Meal == 'Dinner', 1, 0)
+order$Lunch <- ifelse(order$Meal == 'Lunch', 1, 0)
+
+#Preference (Baseline: Non Veg foods)
+order$Vegfood <- ifelse(order$Perference == 'Veg foods', 1, 0)
+order$Bakery <- ifelse(order$Perference == 'Bakery items', 1, 0)
+
+#Influence of time (Baseline:Maybe)
+order$Time.influencial <- ifelse(order$Influence.of.time == 'Yes', 1, 0)
+order$Time.not.influencial <- ifelse(order$Influence.of.time == 'No', 1, 0)
+
+#Order Time (Baseline: Anytime)
+order$Weekdays <- ifelse(order$Order.Time == 'Weekdays', 1, 0)
+order$Weekend <- ifelse(order$Order.Time == 'Weekend', 1, 0)
+
+#Influence of rating (Baseline:Maybe)
+order$Rating.influencial <- ifelse(order$Influence.of.rating == 'Yes', 1, 0)
+order$Ratinge.not.influencial <- ifelse(order$Influence.of.rating == 'No', 1, 0)
+```
+
+
+Setting training and testing sets
+```{r}
+dim(order.1)
+#training_data = Default[1:8000, ]
+
+set.seed(1)
+
+n = dim(order.1)[1]
+n
+k = 300
+set.seed(1234)
+
+train = sample(c(1:n), k)
+length(train)
+
+test = -train
+length(test)
+```
+
+
+Logistic Refression
+```{r}
+attach(order.1)
+
+lr <-glm(Output~Age+Family.size+Ease.and.convenient+Time.saving+More.restaurant.choices+Easy.Payment.option+More.Offers.and.Discount+Good.Food.quality+Good.Tracking.system+Health.Concern+Late.Delivery+Poor.Hygiene+Bad.past.experience+Unavailability+Unaffordable+Long.delivery.time+ Maximum.wait.time+Residence.in.busy.location+Good.Food.quality+Google.Maps.Accuracy+Influence.of.rating+High.Quality.of.package+Politeness+Freshness+Temperature+Good.Taste+Married+Unknown+Student+Employee+SelfEmployeed+Noincome+`10001to25000`+`25001to50000`+School+Postgrad+Graduate+apps+Web+Walkin+Breakfast+Dinner+Lunch+Vegfood+Bakery+Weekdays+Weekend, family = "binomial", data = order.1)
+summary(lr)
+
+#Drop the insignificant variables 
+lr.1 <-glm(Output~Age+Ease.and.convenient+Time.saving+Late.Delivery+Unaffordable+Influence.of.rating+Politeness, family = "binomial", data = order.1)
+summary(lr.1)
+
+#Predict
+lr.1.pred <- predict.glm(lr.1, order.1[test,], type="response")
+length(lr.1.pred)
+max(lr.1.pred)
+
+#Change it into yes/no
+predicted.values = rep("0", n-k)#create a vector that has value Yes repeated of the index.test length times
+predicted.values
+predicted.values[lr.1.pred > 0.5] = "1"
+
+error1.table = table(predicted.values, order.1[test,49])
+error1.table
+error.1 = mean(predicted.values != order.1[test,49])*100
+error.1
+
+plot(lr.1)
+```
+
+Cluster Analysis - K means
+```{r}
+# contain only numerical data
+order.cluster <- order.1[, c(1,3,12,13,21,25,40,44)]
+summary(order.cluster)
+
+order.cluster$Ease.and.convenient = as.numeric(order.cluster$Ease.and.convenient)
+#order.cluster$Gender= as.numeric(order.cluster$Gender)
+order.cluster$Time.saving = as.numeric(order.cluster$Time.saving)
+order.cluster$Late.Delivery= as.numeric(order.cluster$Late.Delivery)
+order.cluster$Unaffordable = as.numeric(order.cluster$Unaffordable)
+order.cluster$Influence.of.rating = as.numeric(order.cluster$Influence.of.rating)
+order.cluster$Politeness = as.numeric(order.cluster$Politeness)
+
+#stnadardize the data
+#install.packages("robustHD")
+library(robustHD)
+#order.s <- robStandardize(order.cluster)
+order.s <- scale(order.cluster)
+set.seed(2)
+
+km.res <- rep(NA, 20)
+#change number of clusters
+for(i in 1:20){
+  km.out = kmeans(order.s, i, nstart = 20) #run k means with the loop of i
+  km.res[i] <- km.out$tot.withinss
+}
+plot(km.res, type="o")
+# By seeing the graph, we can see that form 8 or 10 will be the reasonable cluster numbers, 10 is pushing the limit
+
+
+#pick 4 clusters
+k.out <- kmeans(order.s, 4, nstart = 20)
+k.out$centers
+k.out$size
+
+```
+
+Hierarchical clustering
+```{r}
+dist <- dist(order.s) #find the distance using the standardized data
+hc.out = hclust(dist, method = "ward.D")
+plot(hc.out)
+
+#pick 4 clusters
+hc.res <- cutree(hc.out, 4)
+
+```
+
+
+
